@@ -22,10 +22,12 @@ set(PROJECT_SOURCES
     CashRegisterWindow.cpp
     ReceiptTableModel.cpp  
     ReceiptTableModel.h
+
 )
 
 qt_add_executable(${PROJECT_NAME} ${PROJECT_SOURCES}
-    money.h money.cpp)
+    money.h money.cpp
+    MacroManager.h MacroManager.cpp)
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES

@@ -2,11 +2,13 @@
 #include <QButtonGroup>
 #include <QMessageBox>
 #include <QRegularExpressionValidator>
+#include <QHBoxLayout>
 
 CashRegisterWindow::CashRegisterWindow(QWidget *parent)
     : QMainWindow(parent),
     m_tableModel(new ReceiptTableModel(this)),
-    m_tenderedAmount(0)
+    m_tenderedAmount(0),
+    m_macroManager(new MacroManager(this))
 {
     ui.setupUi(this);
 
@@ -30,6 +32,7 @@ CashRegisterWindow::CashRegisterWindow(QWidget *parent)
     connect(m_tableModel, &ReceiptTableModel::totalsChanged, this, &CashRegisterWindow::onTotalsChanged);
 
     setupNumpad();
+    setupMacroUI();
 
     QRegularExpression rx("^[0-9]{1,6}([.,][0-9]{1,2})?");
     QValidator *moneyValidator = new QRegularExpressionValidator(rx, this);
@@ -43,13 +46,8 @@ CashRegisterWindow::CashRegisterWindow(QWidget *parent)
     updateFinancials();
 
     QString minimalistStyle = R"(
-        QMainWindow {
-            background-color: #F5F5F7;
-        }
-        QLabel {
-            color: #1D1D1F;
-            font-family: "Segoe UI", "Helvetica Neue", sans-serif;
-        }
+        QMainWindow { background-color: #F5F5F7; }
+        QLabel { color: #1D1D1F; font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
         QTableView {
             background-color: #FFFFFF;
             alternate-background-color: #FAFAFA;
@@ -76,12 +74,8 @@ CashRegisterWindow::CashRegisterWindow(QWidget *parent)
             color: #1D1D1F;
             font-weight: 600;
         }
-        QPushButton:hover {
-            background-color: #F5F5F7;
-        }
-        QPushButton:pressed {
-            background-color: #EBEBEB;
-        }
+        QPushButton:hover { background-color: #F5F5F7; }
+        QPushButton:pressed { background-color: #EBEBEB; }
         QPushButton[text="0"], QPushButton[text="1"], QPushButton[text="2"],
         QPushButton[text="3"], QPushButton[text="4"], QPushButton[text="5"],
         QPushButton[text="6"], QPushButton[text="7"], QPushButton[text="8"],
@@ -103,12 +97,8 @@ CashRegisterWindow::CashRegisterWindow(QWidget *parent)
             color: #FF3B30;
             border: 1px solid #FF3B30;
         }
-        QPushButton#btn_clear:hover, QPushButton#btnDecline:hover, QPushButton#btnDeleteItem:hover {
-            background-color: #FFF0F0;
-        }
-        QPushButton#btn_clear:pressed, QPushButton#btnDecline:pressed, QPushButton#btnDeleteItem:pressed {
-            background-color: #FFE5E5;
-        }
+        QPushButton#btn_clear:hover, QPushButton#btnDecline:hover, QPushButton#btnDeleteItem:hover { background-color: #FFF0F0; }
+        QPushButton#btn_clear:pressed, QPushButton#btnDecline:pressed, QPushButton#btnDeleteItem:pressed { background-color: #FFE5E5; }
         QLineEdit {
             background-color: #FFFFFF;
             border: 1px solid #D2D2D7;
@@ -117,15 +107,66 @@ CashRegisterWindow::CashRegisterWindow(QWidget *parent)
             font-size: 20px;
             color: #1D1D1F;
         }
-        QLineEdit:focus {
-            border: 2px solid #007AFF;
+        QLineEdit:focus { border: 2px solid #007AFF; }
+
+        QPushButton#btnMacro {
+            background-color: #E8F0FE;
+            color: #007AFF;
+            border: 1px solid #007AFF;
+            padding: 8px;
         }
+        QPushButton#btnMacro:hover { background-color: #D2E3FC; }
     )";
 
     this->setStyleSheet(minimalistStyle);
 }
 
 CashRegisterWindow::~CashRegisterWindow() = default;
+
+void CashRegisterWindow::setupMacroUI() {
+    QHBoxLayout* macroLayout = new QHBoxLayout();
+
+    QPushButton* btnRecord = new QPushButton("🔴 Запис макроса", this);
+    QPushButton* btnStop = new QPushButton("⏹ Зупинити", this);
+    QPushButton* btnPlay = new QPushButton("▶️ Відтворити", this);
+    QPushButton* btnPlayLoop = new QPushButton("🔁 Відтворити циклічно", this);
+
+    btnRecord->setObjectName("btnMacro");
+    btnStop->setObjectName("btnMacro");
+    btnPlay->setObjectName("btnMacro");
+    btnPlayLoop->setObjectName("btnMacro");
+
+    macroLayout->addWidget(btnRecord);
+    macroLayout->addWidget(btnStop);
+    macroLayout->addWidget(btnPlay);
+    macroLayout->addWidget(btnPlayLoop);
+
+    if (QVBoxLayout* mainLayout = qobject_cast<QVBoxLayout*>(ui.centralWidget->layout())) {
+        mainLayout->addLayout(macroLayout);
+    }
+
+    connect(btnRecord, &QPushButton::clicked, this, &CashRegisterWindow::on_btnRecordMacro_clicked);
+    connect(btnStop, &QPushButton::clicked, this, &CashRegisterWindow::on_btnStopMacro_clicked);
+    connect(btnPlay, &QPushButton::clicked, this, &CashRegisterWindow::on_btnPlayMacro_clicked);
+    connect(btnPlayLoop, &QPushButton::clicked, this, &CashRegisterWindow::on_btnPlayLoopMacro_clicked);
+}
+
+void CashRegisterWindow::on_btnRecordMacro_clicked() {
+    m_macroManager->startRecording("macro.txt");
+}
+
+void CashRegisterWindow::on_btnStopMacro_clicked() {
+    m_macroManager->stopRecording();
+    m_macroManager->stopPlaying();
+}
+
+void CashRegisterWindow::on_btnPlayMacro_clicked() {
+    m_macroManager->startPlaying("macro.txt", false);
+}
+
+void CashRegisterWindow::on_btnPlayLoopMacro_clicked() {
+    m_macroManager->startPlaying("macro.txt", true);
+}
 
 void CashRegisterWindow::setupNumpad() {
     QButtonGroup* numpadGroup = new QButtonGroup(this);
@@ -149,9 +190,7 @@ void CashRegisterWindow::onNumpadClicked(int id) {
     QString currentText = ui.lineEdit->text();
 
     if (id == KeyBackspace) {
-        if (!currentText.isEmpty()) {
-            currentText.chop(1);
-        }
+        if (!currentText.isEmpty()) currentText.chop(1);
     }
     else if (id == KeyPoint) {
         if (!currentText.contains(".") && !currentText.contains(",")) {
@@ -159,18 +198,14 @@ void CashRegisterWindow::onNumpadClicked(int id) {
         }
     }
     else {
-        if (currentText == "0") {
-            currentText = QString::number(id);
-        } else {
-            currentText += QString::number(id);
-        }
+        if (currentText == "0") currentText = QString::number(id);
+        else currentText += QString::number(id);
     }
 
     ui.lineEdit->setText(currentText);
 }
 
 void CashRegisterWindow::onTotalsChanged() {
-
     updateFinancials();
 }
 

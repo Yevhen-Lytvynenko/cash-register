@@ -3,6 +3,7 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_CashRegisterWindow.h"
 #include "ReceiptTableModel.h"
+#include "MacroManager.h"
 
 class QButtonGroup;
 
@@ -23,14 +24,21 @@ private slots:
     void onTotalsChanged();
     void onNumpadClicked(int id);
 
+    void on_btnRecordMacro_clicked();
+    void on_btnStopMacro_clicked();
+    void on_btnPlayMacro_clicked();
+    void on_btnPlayLoopMacro_clicked();
+
 private:
     void setupNumpad();
     void updateFinancials();
     void resetPaymentState();
+    void setupMacroUI();
 
     Ui::CashRegisterWindowClass ui;
     ReceiptTableModel* m_tableModel;
     Money m_tenderedAmount;
+    MacroManager* m_macroManager;
 
     enum NumpadKeys {
         KeyBackspace = 10,
