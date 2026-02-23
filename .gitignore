@@ -1,0 +1,17 @@
+build/
+cmake-build-*/
+out/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+.vs/
+*.user
+*.user.*
+
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
